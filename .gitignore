@@ -10,13 +10,11 @@ build/
 # Environment
 .env
 .env.local
-.env.*
+*.env.*
 
 # Editors
 .vscode/
 .idea/
-*.swp
-*.swo
 
 # Logs
 *.log
@@ -26,38 +24,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
-# Temporary files
-*.tmp
-*.temp
-
-# OS specific
-.DS_Store
-Thumbs.db
-
-# Coverage
-coverage/
-htmlcov/
-.coverage
-
-# Testing
-.mypy_cache/
-.pytest_cache/
-
-# Gradle
-.gradle/
-build/
-
-# Julia
-.julia/
-
-# Zig
-zig-cache/
-zig-out/
-
-# MyPy
-.mypy_cache/
-
-# PyTest
-.pytest_cache/
+.Python
+venv/
+.venv/
 ```

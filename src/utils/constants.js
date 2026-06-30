@@ -27,6 +27,23 @@ export const T = {
   orange:   "#FF5722",
 };
 
+// Цвета для категорий и статусов
+export const COLORS = {
+  primary: T.gold,
+  secondary: T.sapphire,
+  success: T.emerald,
+  danger: T.ruby,
+  warning: T.amber,
+  info: T.cyan,
+  patientNew: T.pink,
+  patientRegular: T.teal,
+  patientVip: T.purple,
+  appointmentConfirmed: T.emerald,
+  appointmentPending: T.amber,
+  appointmentCancelled: T.ruby,
+  appointmentCompleted: T.cyan,
+};
+
 export const GLOBAL_CSS = `
   *{box-sizing:border-box;margin:0;padding:0;}
   body{font-family:'Inter',system-ui,sans-serif;background:${T.bg};color:${T.white};-webkit-font-smoothing:antialiased;}
