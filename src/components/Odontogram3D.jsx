@@ -518,3 +518,6 @@ export function ToothLegend() {
     </div>
   );
 }
+
+// Default export for Odontogram3D component
+export default Odontogram3D;

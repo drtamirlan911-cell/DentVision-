@@ -280,3 +280,4 @@ export function useLabOrders(clinicId) {
 
   return { orders, loading, createOrder, updateOrderStatus };
 }
+export function useData(clinicId) { return useCloudTable('patients', []); }
