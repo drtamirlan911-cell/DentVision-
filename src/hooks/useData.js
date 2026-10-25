@@ -2,7 +2,7 @@
 // CUSTOM HOOKS
 // ═══════════════════════════════════════════════════════════════════
 
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, createElement, useContext, useState, useCallback, useEffect } from 'react';
 import { upsertRow, deleteRow, verifyLogin } from '../utils/supabase';
 import { MEM_CACHE } from '../utils/constants';
 
@@ -74,7 +74,7 @@ export function AuthProvider({ children }) {
     isAuthenticated: Boolean(user),
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return createElement(AuthContext.Provider, { value }, children);
 }
 
 export function useAuth() {
