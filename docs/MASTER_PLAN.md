@@ -352,3 +352,12 @@
 **Следующее действие:** получить фактический результат CI build; затем исследовать доступные определения `verify_login`, `get_clinic_data`, RLS и схему Supabase. Не отмечать DV-001 или DV-002 как DONE до подтверждающих проверок.
 
 **Текущий статус мастер-плана:** первоначальный аудит выполнен по видимому дереву репозитория. Сборка, состояние внешней базы Supabase, фактические определения RPC, RLS, деплой и production-поведение пока не подтверждены.
+
+### Vercel Sandbox build verification — 2026-10-25
+
+- **DV-001 — PARTIAL:** Tailwind CSS v3, PostCSS and Autoprefixer added as development dependencies; PostCSS configured to use the Tailwind v3 plugin compatible with existing CSS directives.
+- **Vercel Sandbox verification:** `npm run build` passed (Vite 5.4.21; 45 modules transformed; `dist/` emitted). A mixed static/dynamic import warning remains for `src/utils/supabase.js`.
+- **Lockfile/CI:** GitHub Actions regenerated and committed `package-lock.json` at commit `7a7313de4189999dade2c01647ead62a24044fbe`. The lockfile refresh workflow completed successfully, including `npm ci` and `npm run build`.
+- **Dependency risk:** npm reported 5 vulnerabilities (4 moderate, 1 high); no forced automatic upgrades were applied.
+- **Security boundary:** build success does not verify Supabase Auth sessions, RPC/RLS policies or tenant isolation. No production data was changed.
+- **Next:** continue DV-003 by verifying Supabase schema, RPC and RLS definitions.
