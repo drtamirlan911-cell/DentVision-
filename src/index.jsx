@@ -6,16 +6,19 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
+import { AuthProvider } from './hooks/useData';
 import './styles/global.css';
 
-// Рендеринг приложения
 const container = document.getElementById('root');
 if (container) {
   const root = createRoot(container);
-  root.render(<App />);
+  root.render(
+    <AuthProvider>
+      <App />
+    </AuthProvider>
+  );
 }
 
-// Экспорт для модульного использования
 export * from './utils/constants';
 export * from './utils/supabase';
 export * from './hooks/useData';
