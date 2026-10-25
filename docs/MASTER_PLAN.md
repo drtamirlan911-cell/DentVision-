@@ -361,3 +361,15 @@
 - **Dependency risk:** npm reported 5 vulnerabilities (4 moderate, 1 high); no forced automatic upgrades were applied.
 - **Security boundary:** build success does not verify Supabase Auth sessions, RPC/RLS policies or tenant isolation. No production data was changed.
 - **Next:** continue DV-003 by verifying Supabase schema, RPC and RLS definitions.
+
+
+### Continuation audit — 2026-10-25 (Vercel Sandbox)
+
+- **Working environment:** resumed the persistent `dentvision-workbench` sandbox and verified its checkout is clean at `fix/dv-002-auth-provider`, HEAD `50c639111236cdddb0a6cceb812f850209ea2846`, matching `origin`.
+- **Build re-check:** `npm run build` passed in the resumed sandbox (Vite 5.4.21, 45 modules, `dist/` emitted). The existing mixed static/dynamic import warning for `src/utils/supabase.js` remains.
+- **Database inventory:** repository search found no SQL migrations, schema files, or Supabase configuration directory. `src/utils/supabase.js` hardcodes the Supabase project URL and publishable key and calls RPCs including `verify_login`, `get_clinic_data`, `upsert_*`, `delete_row`, and `create_user_secure`; their SQL definitions and RLS policies are not present in this checkout.
+- **Runtime access attempt:** read-only requests from the sandbox to the configured Supabase REST root and a zero-row clinic query both failed at the network layer (`fetch failed`). This does not establish whether the remote project is up or down; sandbox network access is currently insufficient to verify the remote database.
+- **Vercel configuration check:** the `dent-vision` project is linked to this repository; the environment-variable listing returned no ordinary project variables. The latest deployment is `READY` but has no production target, and SSO protection is enabled for non-custom domains. This does not establish that the checked deployment is the live production app.
+- **Repository/PR caution:** the active PR #6 targets `planning/owner-control-center-master-plan`, not `main`; keep this distinction explicit and do not merge automatically.
+- **Status:** DV-001 build verification confirmed. DV-002 remains partial because the client RPC login does not establish a Supabase Auth session and logout only clears local React state. DV-003 remains BLOCKED pending read access to the actual Supabase schema/RPC/RLS definitions or a safe export from the project owner. No database or production data was modified.
+- **Next action:** establish an authenticated, read-only route to inspect the exact Supabase project schema, RPC definitions and RLS policies; then add versioned migrations and targeted tests only from verified definitions. Do not invent schema or replace the current backend based on assumptions.
