@@ -339,4 +339,37 @@
 
 ---
 
-**Текущий статус мастер-плана:** составлен по видимому дереву main и исходникам, перечисленным выше. Сборка, состояние внешней базы Supabase, фактические определения RPC, RLS, деплой и production-поведение этим ревью не подтверждены. Первое действие после принятия плана — DV-001, затем DV-002 и DV-003.
+## 9. Журнал прогресса
+
+### Сессия 2026-10-25
+
+- **DV-001 — PARTIAL / BLOCKED:** подтверждены package scripts (`npm run build`) и наличие `package-lock.json`. Добавлен GitHub Actions workflow `.github/workflows/ci.yml` для `npm ci` и production build при pull request. Успешный запуск workflow пока не подтверждён; доступ к пользовательскому Codespaces URL перенаправляет на GitHub login, поэтому локальный запуск в этой сессии недоступен.
+- **DV-002 — PARTIAL:** добавлен общий `AuthProvider` и единый контекст для App, Login и Dashboard; Login теперь использует фактический `verifyLogin` контракт, обработка роли нормализуется, доступ к Super Admin проверяется и при отображении страницы. Регистрация явно сообщает о недоступности вместо ложного успеха.
+- **DV-002 — BLOCKER REMAINS:** текущий `verify_login` — собственный RPC, а клиентский слой отправляет только publishable key. По доступным исходникам нельзя подтвердить создание настоящей Supabase Auth-сессии, серверную идентификацию пользователя, восстановление сессии после перезагрузки или безопасный logout. Поэтому авторизация НЕ считается завершённой и приложение не следует считать готовым к production до проверки SQL/RPC/RLS.
+- **DV-003 — BLOCKED:** определения схемы, RPC и RLS-политик не обнаружены в доступном дереве репозитория; состояние удалённой базы не проверено.
+- **Инфраструктура:** добавлен CI workflow. На последнем проверенном коммите GitHub Actions workflow run не обнаружен через доступный статус-интерфейс; единственный опубликованный commit status — Vercel `failure` с причиной `build-rate-limit` (ограничение сборки, не результат проверки исходников). Поэтому production build остаётся НЕПРОВЕРЕННЫМ. Никакие production-данные не менялись.
+
+**Следующее действие:** получить фактический результат CI build; затем исследовать доступные определения `verify_login`, `get_clinic_data`, RLS и схему Supabase. Не отмечать DV-001 или DV-002 как DONE до подтверждающих проверок.
+
+**Текущий статус мастер-плана:** первоначальный аудит выполнен по видимому дереву репозитория. Сборка, состояние внешней базы Supabase, фактические определения RPC, RLS, деплой и production-поведение пока не подтверждены.
+
+### Vercel Sandbox build verification — 2026-10-25
+
+- **DV-001 — PARTIAL:** Tailwind CSS v3, PostCSS and Autoprefixer added as development dependencies; PostCSS configured to use the Tailwind v3 plugin compatible with existing CSS directives.
+- **Vercel Sandbox verification:** `npm run build` passed (Vite 5.4.21; 45 modules transformed; `dist/` emitted). A mixed static/dynamic import warning remains for `src/utils/supabase.js`.
+- **Lockfile/CI:** GitHub Actions regenerated and committed `package-lock.json` at commit `7a7313de4189999dade2c01647ead62a24044fbe`. The lockfile refresh workflow completed successfully, including `npm ci` and `npm run build`.
+- **Dependency risk:** npm reported 5 vulnerabilities (4 moderate, 1 high); no forced automatic upgrades were applied.
+- **Security boundary:** build success does not verify Supabase Auth sessions, RPC/RLS policies or tenant isolation. No production data was changed.
+- **Next:** continue DV-003 by verifying Supabase schema, RPC and RLS definitions.
+
+
+### Continuation audit — 2026-10-25 (Vercel Sandbox)
+
+- **Working environment:** resumed the persistent `dentvision-workbench` sandbox and verified its checkout is clean at `fix/dv-002-auth-provider`, HEAD `50c639111236cdddb0a6cceb812f850209ea2846`, matching `origin`.
+- **Build re-check:** `npm run build` passed in the resumed sandbox (Vite 5.4.21, 45 modules, `dist/` emitted). The existing mixed static/dynamic import warning for `src/utils/supabase.js` remains.
+- **Database inventory:** repository search found no SQL migrations, schema files, or Supabase configuration directory. `src/utils/supabase.js` hardcodes the Supabase project URL and publishable key and calls RPCs including `verify_login`, `get_clinic_data`, `upsert_*`, `delete_row`, and `create_user_secure`; their SQL definitions and RLS policies are not present in this checkout.
+- **Runtime access attempt:** read-only requests from the sandbox to the configured Supabase REST root and a zero-row clinic query both failed at the network layer (`fetch failed`). This does not establish whether the remote project is up or down; sandbox network access is currently insufficient to verify the remote database.
+- **Vercel configuration check:** the `dent-vision` project is linked to this repository; the environment-variable listing returned no ordinary project variables. The latest deployment is `READY` but has no production target, and SSO protection is enabled for non-custom domains. This does not establish that the checked deployment is the live production app.
+- **Repository/PR caution:** the active PR #6 targets `planning/owner-control-center-master-plan`, not `main`; keep this distinction explicit and do not merge automatically.
+- **Status:** DV-001 build verification confirmed. DV-002 remains partial because the client RPC login does not establish a Supabase Auth session and logout only clears local React state. DV-003 remains BLOCKED pending read access to the actual Supabase schema/RPC/RLS definitions or a safe export from the project owner. No database or production data was modified.
+- **Next action:** establish an authenticated, read-only route to inspect the exact Supabase project schema, RPC definitions and RLS policies; then add versioned migrations and targeted tests only from verified definitions. Do not invent schema or replace the current backend based on assumptions.

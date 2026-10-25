@@ -36,8 +36,10 @@ export async function sbRpc(fn, args) {
 
 // Authentication
 export async function verifyLogin(login, password) {
-  const rows = await sbRpc("verify_login", { p_login: login, p_password: password });
-  return rows && rows.length > 0 ? rows[0] : null;
+  const result = await sbRpc("verify_login", { p_login: login, p_password: password });
+  if (Array.isArray(result)) return result[0] ?? null;
+  if (result && typeof result === "object" && Object.keys(result).length > 0) return result;
+  return null;
 }
 
 // Load all clinic data in one call
