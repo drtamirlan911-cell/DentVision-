@@ -2,9 +2,88 @@
 // CUSTOM HOOKS
 // ═══════════════════════════════════════════════════════════════════
 
-import { useState, useCallback, useEffect } from 'react';
-import { upsertRow, deleteRow } from '../utils/supabase';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { upsertRow, deleteRow, verifyLogin } from '../utils/supabase';
 import { MEM_CACHE } from '../utils/constants';
+
+const AuthContext = createContext(null);
+
+/**
+ * One shared auth state for the entire React tree.
+ * Note: the current RPC login does not establish a Supabase Auth session.
+ * Backend authorization/session work remains a P0 requirement.
+ */
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(null);
+  const [clinic, setClinic] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const login = useCallback(async (loginValue, password) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await verifyLogin(loginValue, password);
+      if (!result) {
+        setError('Неверный логин или пароль');
+        return false;
+      }
+
+      const normalizedUser = {
+        ...result,
+        id: result.id,
+        clinicId: result.clinicId ?? result.clinic_id ?? null,
+        role: (result.role ?? '').toLowerCase() === 'superadmin'
+          ? 'super_admin'
+          : (result.role ?? '').toLowerCase(),
+        name: result.name ?? result.full_name ?? result.login ?? loginValue,
+        login: result.login ?? result.email ?? loginValue,
+      };
+      const clinicId = normalizedUser.clinicId;
+      const normalizedClinic = result.clinic ?? (clinicId
+        ? {
+            id: clinicId,
+            name: result.clinicName ?? result.clinic_name ?? 'Клиника',
+          }
+        : null);
+
+      setUser(normalizedUser);
+      setClinic(normalizedClinic);
+      return true;
+    } catch (e) {
+      setError('Не удалось выполнить вход. Проверьте подключение и попробуйте ещё раз.');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const register = useCallback(async () => {
+    setError('Регистрация временно недоступна: серверный сценарий создания клиники ещё не подтверждён.');
+    return false;
+  }, []);
+
+  const logout = useCallback(() => {
+    setUser(null);
+    setClinic(null);
+    setError(null);
+  }, []);
+
+  const value = {
+    user, clinic, loading, error, login, register, logout,
+    isAuthenticated: Boolean(user),
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+  return context;
+}
 
 /**
  * Generic state hook backed by Supabase RPC mutations + in-memory cache.
@@ -56,41 +135,6 @@ export function useToast() {
 }
 
 /**
- * Hook for authentication state management
- */
-export function useAuth() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const login = useCallback(async (loginFn, credentials) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await loginFn(credentials.login, credentials.password);
-      if (result) {
-        setUser(result);
-        return true;
-      }
-      setError("Неверный логин или пароль");
-      return false;
-    } catch (e) {
-      setError("Ошибка соединения с сервером");
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const logout = useCallback(() => {
-    setUser(null);
-    setError(null);
-  }, []);
-
-  return { user, loading, error, login, logout, isAuthenticated: !!user };
-}
-
-/**
  * Hook for clinic data management
  */
 export function useClinicData(clinicId) {
@@ -99,19 +143,22 @@ export function useClinicData(clinicId) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!clinicId) return;
-    
+    if (!clinicId) {
+      setLoading(false);
+      setData(null);
+      return;
+    }
+
     let cancelled = false;
     setLoading(true);
-    
-    // Load from cache first
+    setError(null);
+
     const cached = MEM_CACHE[`clinic_${clinicId}`];
     if (cached) {
       setData(cached);
       setLoading(false);
     }
 
-    // Then fetch fresh data
     import('../utils/supabase').then(({ loadClinicData }) => {
       loadClinicData(clinicId)
         .then(freshData => {
@@ -146,11 +193,11 @@ export function useAppointmentsWithReminders(appointments, setAppointments) {
 
   const sendReminders = useCallback(async () => {
     const { sendAppointmentReminder } = await import('../utils/supabase');
-    
+
     for (const appt of reminderQueue.filter(r => !r.reminded)) {
       try {
         await sendAppointmentReminder(appt, appt.patient, appt.clinic);
-        setReminderQueue(prev => 
+        setReminderQueue(prev =>
           prev.map(r => r.id === appt.id ? { ...r, reminded: true } : r)
         );
       } catch (e) {
@@ -213,7 +260,7 @@ export function usePhotoProtocol(clinicId) {
     setLoading(true);
     try {
       const { upsertRow } = await import('../utils/supabase');
-      await upsertRow('photos', { ...photoData, clinicId, uploadDate: new Date().toISOString().slice(0,10) });
+      await upsertRow('photos', { ...photoData, clinicId, uploadDate: new Date().toISOString().slice(0, 10) });
       setPhotos(prev => [...prev, photoData]);
       return true;
     } catch (e) {
@@ -250,7 +297,7 @@ export function useLabOrders(clinicId) {
     setLoading(true);
     try {
       const { upsertRow } = await import('../utils/supabase');
-      const newOrder = { ...orderData, clinicId, status: 'pending', createdAt: new Date().toISOString().slice(0,10) };
+      const newOrder = { ...orderData, clinicId, status: 'pending', createdAt: new Date().toISOString().slice(0, 10) };
       await upsertRow('lab_orders', newOrder);
       setOrders(prev => [...prev, newOrder]);
       return newOrder;
@@ -267,7 +314,7 @@ export function useLabOrders(clinicId) {
       const { upsertRow } = await import('../utils/supabase');
       const order = orders.find(o => o.id === orderId);
       if (!order) return false;
-      
+
       const updated = { ...order, status: newStatus };
       await upsertRow('lab_orders', updated);
       setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
@@ -280,4 +327,7 @@ export function useLabOrders(clinicId) {
 
   return { orders, loading, createOrder, updateOrderStatus };
 }
-export function useData(clinicId) { return useCloudTable('patients', []); }
+
+export function useData(clinicId) {
+  return useCloudTable('patients', []);
+}
