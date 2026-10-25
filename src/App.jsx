@@ -9,12 +9,10 @@ import AITeam from './pages/AITeam';
 import SuperAdmin from './pages/SuperAdmin';
 import { useAuth } from './hooks/useData';
 
-// Главный компонент приложения
 export default function App() {
   const { user, clinic, loading, logout } = useAuth();
   const [currentPage, setCurrentPage] = useState('dashboard');
 
-  // Навигация для разных ролей
   const getMenuItems = () => {
     const commonItems = [
       { id: 'dashboard', label: 'Dashboard', icon: '📊' },
@@ -47,7 +45,9 @@ export default function App() {
       case 'ai':
         return <AITeam clinic={clinic} />;
       case 'admin':
-        return <SuperAdmin user={user} />;
+        return user?.role === 'super_admin'
+          ? <SuperAdmin user={user} />
+          : <Dashboard user={user} clinic={clinic} />;
       default:
         return <Dashboard user={user} clinic={clinic} />;
     }
@@ -65,20 +65,19 @@ export default function App() {
   }
 
   if (!user) {
-    return <Login onLoginSuccess={() => {}} />;
+    return <Login onLoginSuccess={() => setCurrentPage('dashboard')} />;
   }
 
   const menuItems = getMenuItems();
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      {/* Sidebar */}
       <aside className="w-64 bg-white shadow-lg border-r fixed h-full overflow-y-auto">
         <div className="p-6 border-b">
           <h1 className="text-xl font-bold text-blue-600">🦷 DentVision</h1>
           <p className="text-xs text-gray-500 mt-1">{clinic?.name || 'Клиника'}</p>
         </div>
-        
+
         <nav className="p-4 space-y-2">
           {menuItems.map((item) => (
             <button
@@ -107,7 +106,6 @@ export default function App() {
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 ml-64">
         {renderPage()}
       </main>
