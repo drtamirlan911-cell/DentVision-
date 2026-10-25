@@ -1,0 +1,56 @@
+name: Refresh lockfile and validate build
+
+on:
+  push:
+    branches:
+      - fix/dv-002-auth-provider
+    paths:
+      - "package.json"
+      - "postcss.config.js"
+      - ".github/workflows/refresh-lockfile.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  lockfile-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout working branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/dv-002-auth-provider
+          persist-credentials: true
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Regenerate lockfile from package.json
+        run: npm install --package-lock-only
+      - name: Install from lockfile
+        run: npm ci
+      - name: Production build
+        run: npm run build
+      - name: Record verified result
+        run: |
+          if ! grep -q "Vercel Sandbox build verification" docs/MASTER_PLAN.md; then
+            cat >> docs/MASTER_PLAN.md <<'EOF'
+
+### Vercel Sandbox build verification — 2026-10-25
+
+- **DV-001 — PARTIAL:** Tailwind CSS v3, PostCSS and Autoprefixer are declared as development dependencies; PostCSS now uses the Tailwind v3 plugin compatible with the existing CSS directives.
+- **Local verification:** `npm run build` passed in the Vercel Sandbox (Vite 5.4.21; 45 modules transformed; `dist/` emitted). A mixed static/dynamic import warning remains for `src/utils/supabase.js`.
+- **Dependency risk:** npm reported 5 vulnerabilities (4 moderate, 1 high); no forced automatic upgrades were applied.
+- **Security boundary:** build success does not verify Supabase Auth sessions, RPC/RLS policies or tenant isolation. No production data was changed.
+- **Next:** continue DV-003 by verifying Supabase schema, RPC and RLS definitions.
+EOF
+          fi
+          git add package-lock.json docs/MASTER_PLAN.md
+          if ! git diff --cached --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "chore: sync lockfile and record build verification"
+            git push origin HEAD:fix/dv-002-auth-provider
+          fi
